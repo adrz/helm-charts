@@ -6,6 +6,7 @@ bin/*
 /.bin
 /_test/secrets/*.json
 
+*.lock
 # OSX leaves these everywhere on SMB shares
 ._*
 
