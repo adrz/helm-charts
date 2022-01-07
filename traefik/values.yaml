@@ -1,0 +1,12 @@
+additionalArguments:
+  - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+  - --certificatesresolvers.letsencrypt.acme.email=adrien@kooping.io
+  - --certificatesresolvers.letsencrypt.acme.storage=/data/letsencrypt.json
+
+serversTransport:
+  insecureSkipVerify: true
+
+ingressClass:
+  enabled: true
+  isDefaultClass: true
+

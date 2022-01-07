@@ -1,0 +1,130 @@
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: mongo-pv
+  labels:
+    app: mongo
+    type: local
+spec:
+  storageClassName: microk8s-hostpath
+  capacity:
+    storage: 50Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/var/data-mongo"
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: mongo-pv-claim
+  labels:
+    app: mongo
+spec:
+  storageClassName: microk8s-hostpath
+  capacity:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+---
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: mongo-configuration
+#   labels:
+#     app: mongo
+# data:
+#   MONGO_INITDB_ROOT_USERNAME:
+#     valueFrom:
+#       secretKeyRef:
+#         name: mongo-auth
+#         key: username
+
+#   MONGO_INITDB_ROOT_PASSWORD:
+#     valueFrom:
+#       secretKeyRef:
+#         name: mongo-auth
+#         key: password
+# ---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongo-statefulset
+  labels:
+    app: mongo
+spec:
+  serviceName: "mongo"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo
+  template:
+    metadata:
+      labels:
+        app: mongo
+    spec:
+      containers:
+      - name: mongo
+        image: mongo:4.0.28-rc0-xenial
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mongo-auth
+              key: username
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongo-auth
+              key: password
+
+        # envFrom:
+        # - configMapRef:
+        #     name: mongo-configuration
+        ports:
+        - containerPort: 27017
+          name: mongodb
+        volumeMounts:
+        - name: pv-data
+          mountPath: /data/db
+      volumes:
+      - name: pv-data
+        persistentVolumeClaim:
+          claimName: mongo-pv-claim
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo-service
+  labels:
+    app: mongo
+spec:
+  ports:
+  - port: 27017
+    nodePort: 30017
+    name: mongo
+  type: NodePort
+  selector:
+    app: mongo
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mongo-ingress
+  annotations:    
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: mongo
+spec:
+  rules:
+  - host: mongo.adrz.dev
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: mongo
+            port:
+              number: 27017
